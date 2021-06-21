@@ -598,4 +598,5 @@
     <string name="add_trigger">Add Trigger</string>
     <string name="add_task">Add Task</string>
     <string name="logFragment">Logs</string>
+    <string name="start_sync">Started Sync</string>
 </resources>
