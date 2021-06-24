@@ -353,6 +353,9 @@ public class MainActivity extends AppCompatActivity
             } else if(fragment instanceof TriggerFragment){
                 startRemotesFragment();
                 superOnBackPressed=false;
+            } else if(fragment instanceof LogFragment){
+                startRemotesFragment();
+                superOnBackPressed=false;
             }
         }
         if(superOnBackPressed){
