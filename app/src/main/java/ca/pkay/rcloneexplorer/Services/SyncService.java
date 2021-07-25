@@ -20,6 +20,9 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -30,6 +33,8 @@ import ca.pkay.rcloneexplorer.Log2File;
 import ca.pkay.rcloneexplorer.R;
 import ca.pkay.rcloneexplorer.Rclone;
 import ca.pkay.rcloneexplorer.util.FLog;
+
+import static android.text.format.Formatter.formatFileSize;
 
 public class SyncService extends IntentService {
 
@@ -118,34 +123,55 @@ public class SyncService extends IntentService {
         startForeground(PERSISTENT_NOTIFICATION_ID_FOR_SYNC, builder.build());
 
         currentProcess = rclone.sync(remoteItem, remotePath, localPath, syncDirection);
+        JSONObject stats;
+        String notificationContent = "";
+        String[] notificationBigText = new String[5];
         if (currentProcess != null) {
             try {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(currentProcess.getErrorStream()));
                 String line;
-                String notificationContent = "";
-                String[] notificationBigText = new String[5];
                 while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("Transferred:") && !line.matches("Transferred:\\s+\\d+\\s+/\\s+\\d+,\\s+\\d+%$")) {
-                        String s = line.substring(12).trim();
-                        notificationBigText[0] = s;
-                        notificationContent = s;
-                    } else if (line.startsWith(" *")) {
-                        String s = line.substring(2).trim();
-                        notificationBigText[1] = s;
-                    } else if (line.startsWith("Errors:")) {
-                        notificationBigText[2] = line;
-                    } else if (line.startsWith("Checks:")) {
-                        notificationBigText[3] = line;
-                    } else if (line.matches("Transferred:\\s+\\d+\\s+/\\s+\\d+,\\s+\\d+%$")) {
-                        notificationBigText[4] = line;
-                    } else if (isLoggingEnable && line.startsWith("ERROR :")){
+                    JSONObject logline = new JSONObject(line);
+                    if (isLoggingEnable && logline.getString("level").equals("error")) {
                         log2File.log(line);
+                    } else if (logline.getString("level").equals("warning")) {
+                        //available stats:
+                        //bytes,checks,deletedDirs,deletes,elapsedTime,errors,eta,fatalError,renames,retryError
+                        //speed,totalBytes,totalChecks,totalTransfers,transferTime,transfers
+                        stats = logline.getJSONObject("stats");
+
+                        long totalBytes = stats.optLong("totalBytes");
+                        long bytes = stats.optLong("bytes");
+                        String speed = formatFileSize(this, stats.optLong("speed")) + "/s";
+                        String size = formatFileSize(this, bytes);
+                        String totalSize = formatFileSize(this, totalBytes);
+                        double percent = ((double) bytes) / totalBytes * 100;
+
+                        if (totalBytes == 0) {
+                            if (bytes == 0) {
+                                percent = 0;
+                            } else {
+                                //this should not occur, but handle it anyway
+                                percent = 100;
+                            }
+                        }
+
+                        //todo: translate
+                        notificationContent = String.format("Transfered:   %s / %s %.0f%% %s, ETA %s s",
+                                size, totalSize, percent, speed, stats.optString("eta", "--"));
+                        notificationBigText[0] = notificationContent;
+                        notificationBigText[1] = String.format("Errors:      %d", stats.optInt("errors"));
+                        notificationBigText[2] = String.format("Checks:      %d / %d", stats.optInt("checks"), stats.optInt("totalChecks"));
+                        notificationBigText[3] = String.format("Transferred: %s / %s", size, totalSize);
+                        notificationBigText[4] = String.format("Elapsed:     %d", stats.optInt("elapsedTime"));
                     }
 
                     updateNotification(title, notificationContent, notificationBigText);
                 }
             } catch (IOException e) {
                 FLog.e(TAG, "onHandleIntent: error reading stdout", e);
+            } catch (JSONException e) {
+                FLog.e(TAG, "onHandleIntent: error reading json", e);
             }
 
             try {
