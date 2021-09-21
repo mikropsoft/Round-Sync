@@ -597,4 +597,10 @@
     <string name="no_trigger_warning">There are no triggers. Please define a trigger first!</string>
     <string name="add_trigger">Add Trigger</string>
     <string name="add_task">Add Task</string>
+    <string name="sync_notification_transferred">Transferred %s of %s</string>
+ <string name="sync_notification_speed">Speed:       %s</string>
+ <string name="sync_notification_remaining">Remaining:   %s s</string>
+ <string name="sync_notification_errors">Errors:      %d</string>
+ <string name="sync_notification_elapsed">Elapsed:     %d seconds</string>
+ <string name="sync_notification_short">%s of %s, %ss remaining</string>
 </resources>
