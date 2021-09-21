@@ -603,4 +603,6 @@
  <string name="sync_notification_errors">Errors:      %d</string>
  <string name="sync_notification_elapsed">Elapsed:     %d seconds</string>
  <string name="sync_notification_short">%s of %s, %ss remaining</string>
+    <string name="logFragment">Logs</string>
+    <string name="start_sync">Started Sync</string>
 </resources>

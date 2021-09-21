@@ -74,10 +74,18 @@ public class Rclone {
         log2File = new Log2File(context);
     }
 
+    private String[] createCommand(ArrayList<String> args) {
+        String[] command = new String[args.size()];
+        for (int i = 0; i < args.size(); i++) {
+            command[i]= args.get(i);
+        }
+        return command;
+    }
     private String[] createCommand(String ...args) {
         boolean loggingEnabled = PreferenceManager
                 .getDefaultSharedPreferences(context)
                 .getBoolean(context.getString(R.string.pref_key_logs), false);
+
         ArrayList<String> command = new ArrayList<>();
 
         command.add(rclone);
@@ -109,8 +117,9 @@ public class Rclone {
         if(loggingEnabled) {
             command.add("-vvv");
         }
+
         Collections.addAll(command, args);
-        return command.toArray(new String[0]);
+        return createCommand(command);
     }
 
     public String[] getRcloneEnv(String... overwriteOptions) {
@@ -560,13 +569,13 @@ public class Rclone {
         String remotePath = (remote.compareTo("//" + remoteName) == 0) ? remoteName + ":" + localRemotePath : remoteName + ":" + localRemotePath + remote;
 
         if (syncDirection == SyncDirectionObject.SYNC_LOCAL_TO_REMOTE) {
-            command = createCommandWithOptions("sync", localPath, remotePath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE");
+            command = createCommandWithOptions("sync", localPath, remotePath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
         } else if (syncDirection == SyncDirectionObject.SYNC_REMOTE_TO_LOCAL) {
-            command = createCommandWithOptions("sync", remotePath, localPath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE");
+            command = createCommandWithOptions("sync", remotePath, localPath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
         } else if (syncDirection == SyncDirectionObject.COPY_LOCAL_TO_REMOTE) {
-            command = createCommandWithOptions("copy", localPath, remotePath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE");
+            command = createCommandWithOptions("copy", localPath, remotePath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
         }else if (syncDirection == SyncDirectionObject.COPY_REMOTE_TO_LOCAL) {
-            command = createCommandWithOptions("copy", remotePath, localPath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE");
+            command = createCommandWithOptions("copy", remotePath, localPath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
         }else {
             return null;
         }

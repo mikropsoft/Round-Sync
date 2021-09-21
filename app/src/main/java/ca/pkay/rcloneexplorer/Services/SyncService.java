@@ -5,6 +5,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.TaskStackBuilder;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -23,17 +24,27 @@ import androidx.preference.PreferenceManager;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.text.CharacterIterator;
+import java.text.StringCharacterIterator;
+import java.util.ArrayList;
+import java.util.Random;
 
 import ca.pkay.rcloneexplorer.BroadcastReceivers.SyncCancelAction;
 import ca.pkay.rcloneexplorer.Items.RemoteItem;
 import ca.pkay.rcloneexplorer.Log2File;
+import ca.pkay.rcloneexplorer.MainActivity;
 import ca.pkay.rcloneexplorer.R;
 import ca.pkay.rcloneexplorer.Rclone;
 import ca.pkay.rcloneexplorer.util.FLog;
+import ca.pkay.rcloneexplorer.util.SyncLog;
 
 import static android.text.format.Formatter.formatFileSize;
 
@@ -122,6 +133,7 @@ public class SyncService extends IntentService {
                 .setPriority(NotificationCompat.PRIORITY_LOW);
 
         startForeground(PERSISTENT_NOTIFICATION_ID_FOR_SYNC, builder.build());
+        SyncLog.info(this, getString(R.string.start_sync), getString(R.string.syncing_service, title));
 
         currentProcess = rclone.sync(remoteItem, remotePath, localPath, syncDirection);
         JSONObject stats;
@@ -186,9 +198,11 @@ public class SyncService extends IntentService {
                 showConnectivityChangedNotification();
             } else if (currentProcess == null || currentProcess.exitValue() != 0) {
                 String errorTitle = getString(R.string.notification_sync_failed);
-                showFailedNotification(errorTitle, title, notificationId);
+                long logEntryId = SyncLog.error(this, title, notificationContent);
+                showFailedNotification(errorTitle, title, notificationId, logEntryId);
             }else{
-                showSuccessNotification(title, notificationId);
+                long logEntryId = SyncLog.info(this, getString(R.string.operation_success), notificationContent);
+                showSuccessNotification(title, notificationId, logEntryId);
             }
         }
 
@@ -281,7 +295,7 @@ public class SyncService extends IntentService {
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
-    private void showFailedNotification(String title, String content, int notificationId) {
+    private void showFailedNotification(String title, String content, int notificationId, long logEntryID) {
         createSummaryNotificationForFailed();
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -289,14 +303,15 @@ public class SyncService extends IntentService {
                 .setContentTitle(title)
                 .setContentText(content)
                 .setGroup(OPERATION_FAILED_GROUP)
-                .setPriority(NotificationCompat.PRIORITY_LOW);
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentIntent(getLogActivityIntent(logEntryID));
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         notificationManager.notify(notificationId, builder.build());
 
     }
 
-    private void showSuccessNotification(String content, int notificationId) {
+    private void showSuccessNotification(String content, int notificationId, long logEntryID) {
         createSummaryNotificationForSuccess();
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -304,16 +319,27 @@ public class SyncService extends IntentService {
                 .setContentTitle(getString(R.string.operation_success))
                 .setContentText(content)
                 .setGroup(OPERATION_SUCCESS_GROUP)
-                .setPriority(NotificationCompat.PRIORITY_LOW);
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentIntent(getLogActivityIntent(logEntryID));
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         notificationManager.notify(notificationId, builder.build());
 
     }
 
+    private PendingIntent getLogActivityIntent(long logEntryID){
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setAction(MainActivity.MAIN_ACTIVITY_START_LOG);
+        //todo: use logEntryID to jump to log entry in the future
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        stackBuilder.addNextIntentWithParentStack(intent);
+        return stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+    }
 
 
     private void showConnectivityChangedNotification() {
+        //todo: add title to differentiate the logs
+        SyncLog.error(this, getString(R.string.sync_cancelled), getString(R.string.wifi_connections_isnt_available));
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_warning)
                 .setContentTitle(getString(R.string.sync_cancelled))
