@@ -56,6 +56,7 @@ public class SyncService extends IntentService {
     public static final String LOCAL_PATH_ARG = "ca.pkay.rcexplorer.SYNC_LOCAL_PATH_ARG";
     public static final String SYNC_DIRECTION_ARG = "ca.pkay.rcexplorer.SYNC_DIRECTION_ARG";
     public static final String SHOW_RESULT_NOTIFICATION = "ca.pkay.rcexplorer.SHOW_RESULT_NOTIFICATION";
+    public static final String TASK_NAME = "ca.pkay.rcexplorer.TASK_NAME";
     private final String OPERATION_FAILED_GROUP = "ca.pkay.rcexplorer.OPERATION_FAILED_GROUP";
     private final String OPERATION_SUCCESS_GROUP = "ca.pkay.rcexplorer.OPERATION_SUCCESS_GROUP";
     private final String CHANNEL_ID = "ca.pkay.rcexplorer.sync_service";
@@ -104,6 +105,7 @@ public class SyncService extends IntentService {
         final RemoteItem remoteItem = intent.getParcelableExtra(REMOTE_ARG);
         final String remotePath = intent.getStringExtra(REMOTE_PATH_ARG);
         final String localPath = intent.getStringExtra(LOCAL_PATH_ARG);
+        String title = intent.getStringExtra(TASK_NAME);
         final int syncDirection = intent.getIntExtra(SYNC_DIRECTION_ARG, 1);
 
         final boolean silentRun = intent.getBooleanExtra(SHOW_RESULT_NOTIFICATION, true);
@@ -111,11 +113,7 @@ public class SyncService extends IntentService {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         Boolean isLoggingEnable = sharedPreferences.getBoolean(getString(R.string.pref_key_logs), false);
 
-        String title;
-        int slashIndex = remotePath.lastIndexOf("/");
-        if (slashIndex >= 0) {
-            title = remotePath.substring(slashIndex + 1);
-        } else {
+        if(title.equals("")){
             title = remotePath;
         }
 
@@ -188,6 +186,7 @@ public class SyncService extends IntentService {
                 FLog.e(TAG, "onHandleIntent: error waiting for process", e);
             }
         }
+
 
         sendUploadFinishedBroadcast(remoteItem.getName(), remotePath);
 
@@ -296,8 +295,6 @@ public class SyncService extends IntentService {
     }
 
     private void showFailedNotification(String title, String content, int notificationId, long logEntryID) {
-        createSummaryNotificationForFailed();
-
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification_error)
                 .setContentTitle(title)
@@ -309,11 +306,11 @@ public class SyncService extends IntentService {
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         notificationManager.notify(notificationId, builder.build());
 
+        //as per developer.android.com, show notification first, then summary
+        createSummaryNotificationForFailed();
     }
 
     private void showSuccessNotification(String content, int notificationId, long logEntryID) {
-        createSummaryNotificationForSuccess();
-
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification_success)
                 .setContentTitle(getString(R.string.operation_success))
@@ -324,6 +321,9 @@ public class SyncService extends IntentService {
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         notificationManager.notify(notificationId, builder.build());
+
+        //as per developer.android.com, show notification first, then summary
+        createSummaryNotificationForSuccess();
 
     }
 
